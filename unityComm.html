@@ -1,0 +1,434 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>Unity Web Player | Unity_Html</title>
+		<script type='text/javascript' src='https://ssl-webplayer.unity3d.com/download_webplayer-3.x/3.0/uo/jquery.min.js'></script>
+        <script src="http://connect.facebook.net/en_US/all.js"></script>
+        <script type="text/javascript" src="http://webplayer.unity3d.com/download_webplayer-3.x/3.0/uo/UnityObject.js"></script>
+        <script type="text/javascript" src="http://webplayer.unity3d.com/download_webplayer-3.x/3.0/uo/UnityObject2.js"></script>
+        <script type="text/javascript">
+		<!--
+		var unityObjectUrl = "http://webplayer.unity3d.com/download_webplayer-3.x/3.0/uo/UnityObject2.js";
+		if (document.location.protocol == 'https:')
+			unityObjectUrl = unityObjectUrl.replace("http://", "https://ssl-");
+		document.write('<script type="text\/javascript" src="' + unityObjectUrl + '"><\/script>');
+		-->
+		</script>
+		
+   
+            
+        <script type="text/javascript">
+		<!--
+            var loggedIn = false;
+			var friendsImages = [];
+			var myImages = [];
+			var fImagesCount = 0,
+            myImagesCount = 0;
+			var friendsImagesUrl = [];
+			var myImagesUrl =[];
+            var popularUrl=[];
+            var recentUrl=[];
+			var count = 0;
+            var limitPics = 100;
+            
+            
+            var config = {
+				width: 960, 
+				height: 600,
+				params: { enableDebugging:"0" }
+				
+			};
+			var u = new UnityObject2(config);
+
+			jQuery(function() {
+
+				var $missingScreen = jQuery("#unityPlayer").find(".missing");
+				var $brokenScreen = jQuery("#unityPlayer").find(".broken");
+				$missingScreen.hide();
+				$brokenScreen.hide();
+				
+				u.observeProgress(function (progress) {
+					switch(progress.pluginStatus) {
+						case "broken":
+							$brokenScreen.find("a").click(function (e) {
+								e.stopPropagation();
+								e.preventDefault();
+								u.installPlugin();
+								return false;
+							});
+							$brokenScreen.show();
+						break;
+						case "missing":
+							$missingScreen.find("a").click(function (e) {
+								e.stopPropagation();
+								e.preventDefault();
+								u.installPlugin();
+								return false;
+							});
+							$missingScreen.show();
+						break;
+						case "installed":
+							$missingScreen.remove();
+						break;
+						case "first":
+						break;
+					}
+				});
+             
+				u.initPlugin(jQuery("#unityPlayer")[0], "unityComm.unity3d");
+               
+			});
+  
+            //facebook Integration
+        
+            function loadAlbums()
+            {
+                FB.init({
+                        appId  : '189710761220128',
+                        status : true,
+                        cookie : true,
+                        xfbml  : true
+                        });
+				
+				(function(d, s, id){
+                 var js, fjs = d.getElementsByTagName(s)[0];
+                 if (d.getElementById(id)) {return;}
+                 js = d.createElement(s); js.id = id;
+                 js.src = "//connect.facebook.net/en_US/all.js";
+                 fjs.parentNode.insertBefore(js, fjs);
+				 }(document, 'script', 'facebook-jssdk'));
+				
+    
+                FB.login(function(response)
+                         {
+                         if (response.authResponse)
+                         {
+                        
+                         document.getElementById("status").innerHTML = "Getting album information from your Facebook profile";
+                    
+                         // Most recently 30 created photos from friends
+                         FB.api(
+                                {
+                                method:'fql.query',
+                                query:'SELECT pid, src_big \
+                                FROM photo \
+                                WHERE aid IN (SELECT aid \
+                                              FROM album WHERE owner IN \
+                                              (SELECT uid2 \
+                                               FROM friend \
+                                               WHERE uid1=me() ORDER BY rand() LIMIT 10)  ORDER BY rand() LIMIT 20) \
+                                ORDER BY created DESC LIMIT 30'
+                                
+                                },
+                                function(response){
+                                for(var i=0;i<response.length;i++){
+                                //alert("FRIENDS url"+response[i].src_big);
+                                recentUrl[i]=response[i].src_big;
+                                //var oImg = document.createElement("img");
+                                //oImg.setAttribute('src',response[i].src_big);
+                                //oImg.setAttribute('alt', 'friend image');
+                                //oImg.setAttribute('height', '200px');
+                                //oImg.setAttribute('width', '200px');
+                                //document.getElementById("recent").appendChild(oImg);
+                                
+                                }
+                                },{scope:'public_profile, basic_info, user_photos, user_friends, friends_photos' }
+                                
+                                );
+                         
+                         // Most popular number of photos from friends
+                         FB.api(
+                                {
+                                method:'fql.query',
+                                query:'SELECT like_info,src_big FROM photo WHERE aid IN (SELECT aid FROM album WHERE owner IN (SELECT uid2 from friend WHERE uid1=me())) ORDER BY like_info.like_count DESC    LIMIT 20'
+                                
+                                },
+                                function(response){
+                                for (var i=0;i<response.length;i++){
+                                //alert("popular"+response[i].src_big);
+                                //alert("like: "+response[i].like_info.like_count);
+                                popularUrl[i]=response[i].src_big;
+                                //var oImg = document.createElement("img");
+                                //oImg.setAttribute('src',response[i].src_big);
+                                //oImg.setAttribute('alt', 'popular photos');
+                                //oImg.setAttribute('height', '200px');
+                                //oImg.setAttribute('width', '200px');
+                                //document.getElementById("popular").appendChild(oImg);
+                                }
+                                },{scope:'public_profile, basic_info, user_photos, user_friends, user_status, friends_likes, friends_photos'}
+                                );
+                         
+                         
+                         //randomly get photos from your ablums
+                         FB.api(
+                                {
+                                method:'fql.query',
+                                query:'SELECT src_big,aid FROM photo WHERE aid IN (SELECT aid FROM album WHERE owner=me() ORDER BY rand() LIMIT 10 ) ORDER BY rand() LIMIT 50'
+                                
+                                },
+                                function(response){
+                                for (var i=0;i<response.length;i++){
+                                myImagesUrl[i]=response[i].src_big;
+                                //var oImg = document.createElement("img");
+                                //oImg.setAttribute('src',response[i].src_big);
+                                //oImg.setAttribute('alt', 'popular photos');
+                                //oImg.setAttribute('height', '200px');
+                                //oImg.setAttribute('width', '200px');
+                                //document.getElementById("me").appendChild(oImg);
+                                }
+                                },{scope:'public_profile, basic_info, user_photos, user_friends, user_status,friends_photos'}
+                                );
+                         
+                         /*
+                         var counter = 0;
+                         FB.api('/me/albums', function(response)
+                                {
+                                var albumid;
+                                var d = response.data;
+                                for (var i=0; i<Math.min(d.length,3); i++)
+                                {
+								albumid = d[i].id;
+                                FB.api("/"+albumid+"/photos", function(response){
+                                       var d_pics = response.data;
+                                       var pElement = document.createElement('p');
+                                       
+                                       for(var j = 0; j< Math.min(d_pics.length,20);j++ ){
+                                       myImages[myImagesCount] = new Image();
+                                       myImages[myImagesCount].src = d_pics[j].source;
+                                       myImagesUrl[myImagesCount]= myImages[myImagesCount].src;
+                                       myImagesCount += 1;
+                                       
+                                       
+                                       var oImg = document.createElement("img");
+										
+										oImg.setAttribute('src', d_pics[j].source);
+										oImg.setAttribute('alt', d_pics[j].name);
+										oImg.setAttribute('height', '200px');
+										oImg.setAttribute('width', '200px');
+										
+										pElement.appendChild(oImg);
+										divElement.appendChild(pElement);
+                                       }
+                                       });
+								counter++;
+                                }
+                                document.getElementById("status").innerHTML = "There are "+ counter +" albums in your Facebook profile";
+                                });*/
+                         
+                         //randonly get photos from your friends
+                         
+                         FB.api(
+                                {
+                                method:'fql.query',
+                                query:'SELECT src_big,aid FROM photo WHERE aid IN (SELECT aid FROM album WHERE owner IN (SELECT uid FROM user where uid IN (select uid2 from friend where uid1 = me() ORDER BY rand() LIMIT 50)) ORDER BY rand() LIMIT 10) ORDER BY rand() LIMIT 50'
+                                
+                                },
+                                function(response){
+                                for (var i=0;i<response.length;i++){
+                                friendsImagesUrl[i]=response[i].src_big;
+                                //var oImg = document.createElement("img");
+                                //oImg.setAttribute('src',response[i].src_big);
+                                //oImg.setAttribute('alt', 'popular photos');
+                                //oImg.setAttribute('height', '200px');
+                                //oImg.setAttribute('width', '200px');
+                                //document.getElementById("friends").appendChild(oImg);
+                                }
+                                },{scope:'public_profile, basic_info, user_photos, user_friends, user_status,friends_photos'}
+                                );
+                         
+                         /*
+                         FB.api('/me/friends/', function(response) {
+                               
+                                for(var i = 0; i < Math.min(response.data.length, 20); i++) {
+								FB.api('/'+response.data[i].id+'/albums' , function(friendsAlbums) {
+                                       for(var k = 0; k < Math.min(friendsAlbums.data.length, 2); k++) {
+                                       FB.api('/'+friendsAlbums.data[k].id + '?fields=photos' , function(friendsPhotos) {
+                                              
+                                              for(var z = 0; z < Math.min(friendsPhotos.photos.data.length, 2); z++) {
+                                              for(var zD = 0; zD < Math.min(friendsPhotos.photos.data[z].images.length, 1); zD++) {
+                                              friendsImages[fImagesCount] = new Image();
+                                              friendsImages[fImagesCount].src = friendsPhotos.photos.data[z].images[zD].source;
+                                              //alert("friendsurl:"+friendsImages[fImagesCount].src);
+                          
+                                              //document.getElementById("status").innerHTML = "friendsImages "+url;
+                                              friendsImagesUrl[fImagesCount]= friendsImages[fImagesCount].src;
+                                              //alert(friendsImagesUrl[fImagesCount]);
+                                              fImagesCount += 1;
+                                              
+                                              
+                                              var oImg = document.createElement("img");
+                                               oImg.setAttribute('src', friendsPhotos.photos.data[z].images[zD].source);
+                                               oImg.setAttribute('alt', 'wer');
+                                               oImg.setAttribute('height', '200px');
+                                               oImg.setAttribute('width', '200px');
+                                               document.body.appendChild(oImg);
+                                               
+                                               
+                                               //alert(friendsPhotos.photos.data[z].images[zD].source);
+                                              //alert("haha");
+                                              }
+                                              }
+                                              });
+                                       }
+                                       
+                                       
+                                       });
+                                    }
+                                });*/
+                         }
+                         },{scope:'read_stream,publish_stream,offline_access,user_photos,friends_photos,user_photo_video_tags,friends_photo_video_tags'});
+				
+            }
+
+                        
+            
+            /*
+            function shufflePics(){
+				if(count == 0){
+					for(var i = 0; i < 10; i++){
+						var oImg = document.createElement("img");
+						count += 1;
+						//alert(i);
+						//if(i%2 == 0)
+                        oImg.setAttribute('src', friendsImages[i].src);
+						//else oImg.setAttribute('src', myImages[i].src);
+						oImg.setAttribute('alt', 'wer');
+						oImg.setAttribute('height', '200px');
+						oImg.setAttribute('width', '200px');
+						document.body.appendChild(oImg);
+					}
+				}
+                
+			}*/
+			
+			
+            //send imagesURL to unity
+            function myAlbums(){
+                for (var i = 0; i< Math.min(myImagesUrl.length,50);i++){
+                    u.getUnity().SendMessage("Game","myPicture",myImagesUrl[i]);
+                }
+            }
+            
+           
+            function myfAlbums(){
+                for(var i=0; i<Math.min(friendsImagesUrl.length,50);i++){
+                    u.getUnity().SendMessage("Game","myfPicture",friendsImagesUrl[i]);
+                }
+            }
+            
+            function popularPhotos(){
+                //alert("popularUrl"+popularUrl.length);
+                for (var i = 0; i< Math.min(popularUrl.length,50);i++){
+                    u.getUnity().SendMessage("Game","popularPicture",popularUrl[i]);
+                }
+            }
+            
+            function recentPhotos(){
+                for (var i = 0; i< Math.min(recentUrl.length,50);i++){
+                    u.getUnity().SendMessage("Game","recentPicture",recentUrl[i]);
+                }
+            }
+            //
+            //function Check(s){
+              // alert(s);
+            //}
+                       
+            function init() 
+            {
+				loadAlbums();	
+            }
+            
+            //calls init function once all the resources are loaded
+            window.addEventListener("load",init,true);
+        	
+            
+		-->
+		</script>
+		<style type="text/css">
+		<!--
+		body {
+			font-family: Helvetica, Verdana, Arial, sans-serif;
+			background-color: white;
+			color: black;
+			text-align: center;
+		}
+		a:link, a:visited {
+			color: #000;
+		}
+		a:active, a:hover {
+			color: #666;
+		}
+		p.header {
+			font-size: small;
+		}
+		p.header span {
+			font-weight: bold;
+		}
+		p.footer {
+			font-size: x-small;
+		}
+		div.content {
+			margin: auto;
+			width: 960px;
+		}
+		div.broken,
+		div.missing {
+			margin: auto;
+			position: relative;
+			top: 50%;
+			width: 193px;
+		}
+		div.broken a,
+		div.missing a {
+			height: 63px;
+			position: relative;
+			top: -31px;
+		}
+		div.broken img,
+		div.missing img {
+			border-width: 0px;
+		}
+		div.broken {
+			display: none;
+		}
+		div#unityPlayer {
+			cursor: default;
+			height: 600px;
+			width: 960px;
+		}
+		-->
+		</style>
+            
+ 
+	</head>
+	<body>
+		<p class="header"><span>Unity Web Player | </span>Unity_Html</p>
+		<h1>Just Remember </h1>
+        <p id="status"> ... </p>
+
+        <div class="content">
+			<div id="unityPlayer">
+				<div class="missing">
+					<a href="http://unity3d.com/webplayer/" title="Unity Web Player. Install now!">
+						<img alt="Unity Web Player. Install now!" src="http://webplayer.unity3d.com/installation/getunity.png" width="193" height="63" />
+					</a>
+				</div>
+				<div class="broken">
+					<a href="http://unity3d.com/webplayer/" title="Unity Web Player. Install now! Restart your browser after install.">
+						<img alt="Unity Web Player. Install now! Restart your browser after install." src="http://webplayer.unity3d.com/installation/getunityrestart.png" width="193" height="63" />
+					</a>
+				</div>
+			</div>
+		</div>
+        <p>Most recent photos</p>
+        <div id  = "recent"></div>
+        <p>Most popular photos</p>
+        <div id="popular"></div>
+        <p> randomly photos from friends</p>
+        <div id="friends"></div>
+        <p>randomly photos from your own albums</p>
+        <div id="me"></div>
+		<p class="footer">&laquo; created with <a href="http://unity3d.com/unity/" title="Go to unity3d.com">Unity</a> &raquo;</p>
+	</body>
+</html>
